@@ -1,43 +1,26 @@
-# 🤖 WhatsApp Bot com Node.js
+# Bot WhatsApp 
 
-Este é um bot para WhatsApp criado com [whatsapp-web.js]
-
-- Um **menu interativo automático** com múltiplas opções
-- Encaminhamento para **atendimento humano**
-- Retorno ao menu digitando `"menu"`
-- Gerenciamento simples de estado por usuário
-
----
+Bot de atendimento automático para WhatsApp usando Baileys.
 
 ## 🚀 Funcionalidades
 
-- Menu automático com opções como:
-  - Ver horário de atendimento
-  - Falar com atendente
-  - Ver serviços, localização e mais
-- Respostas automáticas com mensagens personalizadas
-- Controle de fluxo: volta ao menu a qualquer momento com `"menu"`
-- Encerramento manual do atendimento por parte do atendente
+- Menu interativo com 6 opções
+- Horário de atendimento
+- Chamada de atendente humano 
+- Lista de serviços e valores
+- Localização e formas de pagamento
+- Pausar/reativar atendimento por cliente
+- Reconexão automática se cair
 
----
+## 📋 Pré-requisitos
 
-## 🛠 Tecnologias
+- Node.js 18+ 
+- Conta na ShardCloud, Render ou qualquer hosting Node
 
-- [Node.js](https://nodejs.org/)
-- [qrcode-terminal](https://www.npmjs.com/package/qrcode-terminal)
+## ⚙️ Instalação
 
----
+1. *Clone/baixe o projeto*
 
-## 🧩 Pré-requisitos
-
-- Node.js instalado (v14 ou superior)
-- WhatsApp com acesso ao QR Code
-- Navegador instalado (Chromium via Puppeteer é usado internamente)
-
----
-
-## 📦 Instalação
-
+2. *Instale as dependências:*
 ```bash
 npm install
-node main.js
