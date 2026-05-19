@@ -1,52 +1,88 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
-const Message = require('./messages');
+const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys')
+const { Boom } = require('@hapi/boom')
+const qrcode = require('qrcode-terminal')
+const pino = require('pino')
+const Message = require('./messages')
 
-const client = new Client({
-    authStrategy: new LocalAuth()
-});
+const userState = {}
 
-client.on('qr', (qr) => {
-    qrcode.generate(qr, { small: true});
-});
+async function startBot() {
+    const { version } = await fetchLatestBaileysVersion()
+    const { state, saveCreds } = await useMultiFileAuthState('auth_info')
 
-client.once('ready', () => {
-    console.log('Bot está pronto!');
-});
+    const sock = makeWASocket({
+        version,
+        auth: state,
+        logger: pino({ level: 'silent' }),
+        browser: ['Mendes Estacionamento', 'Chrome', '1.0.0']
+    })
 
-const userState = {};
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update
 
-client.on('message', async (msg) => {
-    const chatId = msg.from;
-    const body = msg.body.trim().toLocaleLowerCase();
-
-    if (body === 'menu' || !userState[chatId]) {
-        userState[chatId] = 'menu';
-        return client.sendMessage(chatId, Message.getMessage(10));
-    }
-
-    if (userState[chatId] === 'menu') {
-        if (body === '2') {
-            userState[chatId] = 'attendent';
+        if(qr) {
+            console.log('Escaneia o QR Code:')
+            qrcode.generate(qr, { small: true })
         }
-        return client.sendMessage(chatId, Message.getMessage(body));
-    }
-});
 
-client.on('message_create', async (msg) => {
-    const chatId = msg.to;
-    const body = msg.body.trim().toLocaleLowerCase();
+        if(connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error instanceof Boom)?.output?.statusCode!== DisconnectReason.loggedOut
+            console.log('Conexão fechada. Reconectando:', shouldReconnect)
+            if (shouldReconnect) {
+                startBot()
+            } else {
+                console.log('Deslogado. Deleta a pasta auth_info e reinicia.')
+            }
+        }
 
-    if (msg.fromMe && body == 'encerrar atendimento') {
-        userState[chatId] = 'menu';
-        await client.sendMessage(chatId, Message.getMessage(7));
-        await sleep(3000);
-        return client.sendMessage(chatId, Message.getMessage(10)); 
-    }
-});
+        if(connection === 'open') {
+            console.log('Bot está pronto!')
+        }
+    })
 
-function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('messages.upsert', async ({ messages }) => {
+        const msg = messages[0]
+        if (!msg.message || msg.key.fromMe) return
+
+        const chatId = msg.key.remoteJid
+        if (chatId.endsWith('@g.us')) return // ignora grupo
+
+        const body = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
+        const texto = body.trim().toLowerCase()
+
+        // 1. MENU OU PRIMEIRA MSG - sempre reseta
+        if (texto === 'menu' ||!userState[chatId]) {
+            userState[chatId] = 'menu'
+            return await sock.sendMessage(chatId, { text: Message.getMessage(10) })
+        }
+
+        // 2. SE TÁ PAUSADO: reativa se for número válido ou menu
+        if (userState[chatId] === 'attendant') {
+            if (/^[1-8]$/.test(texto) || texto === 'menu') {
+                userState[chatId] = 'menu' // reativa e continua
+            } else {
+                return // ignora texto aleatório
+            }
+        }
+
+        // 3. MENU PRINCIPAL
+        if (userState[chatId] === 'menu') {
+            if (texto === '2') {
+                userState[chatId] = 'attendant'
+                return await sock.sendMessage(chatId, { text: Message.getMessage(2) })
+            }
+
+            if (texto === '8') {
+                userState[chatId] = 'attendant'
+                return await sock.sendMessage(chatId, { text: Message.getMessage(8) })
+            }
+
+            // 1,3,4,5,6,7 usa seu messages.js
+            return await sock.sendMessage(chatId, { text: Message.getMessage(texto) })
+        }
+    })
 }
 
-client.initialize();
+startBot()
