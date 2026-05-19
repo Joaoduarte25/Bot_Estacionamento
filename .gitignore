@@ -1,4 +1,27 @@
-node_modules
-.wwebjs_cache
-.wwebjs_auth
-package-lock.json
+# Dependências
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dados sensíveis do Baileys
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.*.local
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+
+# Pasta de build
+dist/
+build/
